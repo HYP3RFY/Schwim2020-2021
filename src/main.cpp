@@ -1,5 +1,20 @@
 #include "main.h"
 
+#define DEADZONE(x) fabs(x)<15?0:x
+
+using namespace pros;
+Controller master(E_CONTROLLER_MASTER);
+Motor leftMtr(1);
+Motor rightMtr(2);
+Motor elevatorMtr(3);
+Motor switchMtr(4);
+Motor leftIntake(5);
+Motor rightIntake(6);
+
+
+int elevatorToggle = 0;
+
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -7,10 +22,10 @@
  * to keep execution time for this mode under a few seconds.
  */
 void initialize() {
-	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello PROS User!");
+	lcd::initialize();
+	lcd::set_text(1, "Hello PROS User!");
 
-	pros::lcd::register_btn1_cb(on_center_button);
+	lcd::register_btn1_cb(on_center_button);
 }
 
 /**
@@ -58,24 +73,61 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	pros::Motor leftMtr(1);
-	pros::Motor rightMtr(2);
-	pros::Motor elevatorMtr(3);
-	pros::Motor switchMtr(4);
+	Controller master(E_CONTROLLER_MASTER);
+	Motor leftMtr(1);
+	Motor rightMtr(2);
+	Motor elevatorMtr(3);
+	Motor switchMtr(4);
+	Motor leftIntake(5);
+	Motor rightIntake(6);
 
 	leftMtr.set_brake_mode(MOTOR_BRAKE_BRAKE);
 	rightMtr.set_brake_mode(MOTOR_BRAKE_BRAKE);
 	elevatorMtr.set_brake_mode(MOTOR_BRAKE_BRAKE);
 	switchMtr.set_brake_mode(MOTOR_BRAKE_BRAKE);
-	//Drive Train
-	leftMtr.
+	elevatorMtr.set_gearing(MOTOR_GEARSET_6);
+	switchMtr.set_gearing(MOTOR_GEARSET_6);
 
 	while (true) {
-		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
 
-		pros::delay(20);
+		//Drive Train
+		int power = DEADZONE(master.get_analog(ANALOG_LEFT_Y) * (200/128.0));
+		int turn = DEADZONE(master.get_analog(ANALOG_RIGHT_X) * (200/128.0));
+		int left = power + turn;
+	 	int right = power - turn;
+		leftMtr.move_velocity(left);
+	 	rightMtr.move_velocity(right);
+
+		//Intakes
+		if (master.get_digital(DIGITAL_R1)) {
+			leftIntake.move_velocity(200);
+			rightIntake.move_velocity(-200);
+		} else if (master.get_digital(DIGITAL_R2)) {
+			leftIntake.move_velocity(-200);
+			rightIntake.move_velocity(200);
+		} else {
+			leftIntake.move_velocity(0);
+			rightIntake.move_velocity(0);
+		}
+
+		//Elevator
+		if (master.get_digital_new_press(DIGITAL_L1)) {
+			elevatorToggle = 1;
+		} else if (master.get_digital(DIGITAL_L2)){
+			elevatorToggle = 2;
+		} else {
+			elevatorToggle = 0;
+		}
+
+		if (elevatorToggle == 1) {
+			elevatorMtr.move_velocity(600);
+
+		}
+
+
+
+
+
+		delay(20);
 	}
 }
