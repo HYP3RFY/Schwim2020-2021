@@ -10,9 +10,11 @@ Motor elevatorMtr(3);
 Motor switchMtr(4);
 Motor leftIntake(5);
 Motor rightIntake(6);
+Motor bottomIntake(7);
 
 
-int elevatorToggle = 0;
+bool elevatorToggle = false;
+int eleVar = 0;
 
 
 /**
@@ -23,9 +25,6 @@ int elevatorToggle = 0;
  */
 void initialize() {
 	lcd::initialize();
-	lcd::set_text(1, "Hello PROS User!");
-
-	lcd::register_btn1_cb(on_center_button);
 }
 
 /**
@@ -80,6 +79,7 @@ void opcontrol() {
 	Motor switchMtr(4);
 	Motor leftIntake(5);
 	Motor rightIntake(6);
+	Motor bottomIntake(7);
 
 	leftMtr.set_brake_mode(MOTOR_BRAKE_BRAKE);
 	rightMtr.set_brake_mode(MOTOR_BRAKE_BRAKE);
@@ -89,45 +89,73 @@ void opcontrol() {
 	switchMtr.set_gearing(MOTOR_GEARSET_6);
 
 	while (true) {
-
-		//Drive Train
+/*--------------------------------------------
+Drive Train
+----------------------------------------------*/
 		int power = DEADZONE(master.get_analog(ANALOG_LEFT_Y) * (200/128.0));
 		int turn = DEADZONE(master.get_analog(ANALOG_RIGHT_X) * (200/128.0));
 		int left = power + turn;
 	 	int right = power - turn;
 		leftMtr.move_velocity(left);
 	 	rightMtr.move_velocity(right);
-
-		//Intakes
+/*--------------------------------------------
+Elevator Control
+----------------------------------------------*/
 		if (master.get_digital(DIGITAL_R1)) {
 			leftIntake.move_velocity(200);
 			rightIntake.move_velocity(-200);
+			bottomIntake.move_velocity(200);
 		} else if (master.get_digital(DIGITAL_R2)) {
 			leftIntake.move_velocity(-200);
 			rightIntake.move_velocity(200);
+			bottomIntake.move_velocity(-200);
 		} else {
 			leftIntake.move_velocity(0);
 			rightIntake.move_velocity(0);
+			bottomIntake.move_velocity(0);
 		}
-
-		//Elevator
-		if (master.get_digital_new_press(DIGITAL_L1)) {
-			elevatorToggle = 1;
-		} else if (master.get_digital(DIGITAL_L2)){
-			elevatorToggle = 2;
+/*--------------------------------------------
+Elevator Toggle
+----------------------------------------------*/
+		if (master.get_digital_new_press(DIGITAL_X)) {
+			eleVar = 1 - eleVar;
+		}
+/*--------------------------------------------
+Switch Control
+----------------------------------------------*/
+		if (master.get_digital(DIGITAL_L2)){
+		  elevatorToggle = true;
 		} else {
-			elevatorToggle = 0;
+			elevatorToggle = false;
 		}
-
-		if (elevatorToggle == 1) {
+		/*--------------------------------------------
+Elevator Control
+----------------------------------------------*/
+		if (elevatorToggle == true && eleVar == 1) {
+			switchMtr.move_velocity(600);
 			elevatorMtr.move_velocity(600);
-
+		} else if (elevatorToggle == false && eleVar == 1){
+			switchMtr.move_velocity(-600);
+			elevatorMtr.move_velocity(600);
+		} else {
+			switchMtr.move_velocity(0);
+			elevatorMtr.move_velocity(0);
 		}
 
 
+/*	if (master.get_digital(DIGITAL_L1)) {
+		elevatorMtr.move_velocity(600);
+		switchMtr.move_velocity(-600);
+	} else if (master.get_digital(DIGITAL_L2)) {
+		elevatorMtr.move_velocity(-600);
+			switchMtr.move_velocity(600);
 
+	} else {
+		elevatorMtr.move_velocity(0);
+			switchMtr.move_velocity(0);
+	}
 
-
+*/
 		delay(20);
 	}
 }
